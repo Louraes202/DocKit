@@ -1,6 +1,25 @@
-version: '3'
+version: '3.8'
+
 services:
-  app:
-    build: .
+  flask:
+    build: ./src/flask
     ports:
       - "5000:5000"
+    networks:
+      - app-network
+
+  generator:
+    build: ./src/generator
+    networks:
+      - app-network
+
+  web:
+    build: ./src/web
+    ports:
+      - "3000:3000"
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge

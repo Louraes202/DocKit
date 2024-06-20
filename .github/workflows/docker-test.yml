@@ -1,0 +1,48 @@
+name: Docker Image CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Cache Docker layers
+        uses: actions/cache@v2
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      - name: Change directory to src/flask
+        run: cd src/flask
+
+      - name: Build Docker image
+        run: docker build -t my_flask_app .
+
+      - name: Run container in detached mode
+        run: docker run -d -p 5000:5000 --name my_flask_app my_flask_app
+
+      - name: Wait for the container to be ready
+        run: |
+          sleep 5
+          docker ps
+
+      - name: Run tests
+        run: docker exec my_flask_app pytest
+
+      - name: Stop and remove container
+        run: docker stop my_flask_app && docker rm my_flask_app

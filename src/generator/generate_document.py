@@ -91,10 +91,6 @@ def add_content(doc, content):
 
 def generate_document(content, theme=None, custom_styles=None):
     doc = Document()
-
-    if theme:
-        apply_theme(doc.styles, theme)
-
     if custom_styles:
         apply_custom_styles(doc.styles, custom_styles)
 
