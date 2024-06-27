@@ -1,11 +1,16 @@
 import json
+from flask import Flask, jsonify, request, send_file
 from docx import Document
 from docx.shared import Pt, Inches
-from docx.enum.text import WD_PARAGRAPH_ALIGNMENT, WD_ALIGN_PARAGRAPH
-from docx.oxml.ns import qn
-from docx.oxml import OxmlElement
+from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
 from docx.shared import RGBColor
 from docx.enum.table import WD_TABLE_ALIGNMENT
+from flask_cors import CORS
+import requests
+import io
+
+app = Flask(__name__)
+CORS(app)  # Habilitar CORS para todas as rotas
 
 def set_font_style(font, size=None, bold=None, italic=None, name=None, color=None):
     if size:
@@ -18,19 +23,6 @@ def set_font_style(font, size=None, bold=None, italic=None, name=None, color=Non
         font.name = name
     if color:
         font.color.rgb = RGBColor(color[0], color[1], color[2])
-
-def apply_custom_styles(styles, custom_styles):
-    for style_name, style_attributes in custom_styles.items():
-        if style_name in styles:
-            style = styles[style_name]
-            set_font_style(
-                style.font,
-                size=style_attributes.get('size'),
-                bold=style_attributes.get('bold'),
-                italic=style_attributes.get('italic'),
-                name=style_attributes.get('name'),
-                color=style_attributes.get('color')
-            )
 
 def add_paragraph(doc, text, style=None, alignment=None):
     paragraph = doc.add_paragraph(text, style=style)
@@ -89,18 +81,32 @@ def add_content(doc, content):
     for section in content['sections']:
         add_section(section)
 
-def generate_document(content, theme=None, custom_styles=None):
+def generate_document(content):
     doc = Document()
-    if custom_styles:
-        apply_custom_styles(doc.styles, custom_styles)
 
     add_content(doc, content)
 
-    document_path = 'output.docx'
-    doc.save(document_path)
-    return document_path
+    buffer = io.BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+    return buffer
 
-if __name__ == "__main__":
-    with open('content.json', 'r') as f:
-        data = json.load(f)
-        generate_document(data['content'], data.get('theme'), data.get('custom_styles'))
+@app.route('/generate-document', methods=['POST'])
+def generate_document_endpoint():
+    data = request.json
+    print("Data received:", data)  # Log the received data
+
+    content = data.get('content')
+
+    if not content:
+        return jsonify({'error': 'No content provided'}), 400
+
+    try:
+        document_buffer = generate_document(content)
+        return send_file(document_buffer, as_attachment=True, download_name='documento.docx', mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+    except Exception as e:
+        print("Error generating document:", str(e))
+        return jsonify({'error': 'Error generating document'}), 500
+    
+if __name__ == '__main__':
+    app.run(port=5000, debug=True)
